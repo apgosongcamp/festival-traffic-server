@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Festival Live Traffic Map</title>
+    <style>
+        body { font-family: sans-serif; background-color: #1a1a1a; color: #fff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { margin-bottom: 10px; }
+        .timestamp { color: #888; margin-bottom: 20px; }
+        .map-wrapper { position: relative; width: 1000px; height: 600px; background-image: url('school_floorplan.png'); background-size: cover; background-position: center; border-radius: 15px; border: 2px solid #333; }
+        .booth-badge { position: absolute; background: rgba(20, 20, 25, 0.85); backdrop-filter: blur(5px); border: 2px solid #00ffcc; border-radius: 8px; padding: 10px; width: 120px; text-align: center; transform: translate(-50%, -50%); }
+        .booth-name { font-size: 12px; font-weight: bold; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .booth-count { font-size: 24px; font-weight: bold; color: #00ffcc; }
+        .crowded { border-color: #ff4d4d; }
+        .crowded .booth-count { color: #ff4d4d; }
+    </style>
+</head>
+<body>
+
+    <h1>🎪 School Festival Live Traffic Map</h1>
+    <div class="timestamp" id="last-updated">Updating every minute...</div>
+
+    <div class="map-wrapper" id="map-container"></div>
+
+    <script>
+        // UPDATE THESE COORDINATES BASED ON WHERE BOOTHS ARE ON YOUR IMAGE
+        const boothCoordinates = {
+            "Booth 1: Haunted House": { x: 250, y: 180 },
+            "Booth 2: Food Court":    { x: 500, y: 450 },
+            "Booth 3: Arcade Games":  { x: 780, y: 220 },
+            "Booth 4: Photobooth":    { x: 150, y: 400 }
+        };
+
+        function updateMap() {
+            // TARGETS YOUR LIVE RENDER SERVER
+            fetch('https://festival-traffic-server.onrender.com/api/traffic')
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('map-container');
+                    container.querySelectorAll('.booth-badge').forEach(b => b.remove());
+
+                    for (const [boothName, count] of Object.entries(data)) {
+                        const coords = boothCoordinates[boothName];
+                        if (coords) {
+                            const badge = document.createElement('div');
+                            badge.className = 'booth-badge';
+                            if (count >= 20) badge.classList.add('crowded');
+
+                            badge.style.left = `${coords.x}px`;
+                            badge.style.top = `${coords.y}px`;
+                            badge.innerHTML = `
+                                <div class="booth-name">${boothName.split(': ')[1] || boothName}</div>
+                                <div class="booth-count">${count}</div>
+                            `;
+                            container.appendChild(badge);
+                        }
+                    }
+                    document.getElementById('last-updated').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+                })
+                .catch(err => console.error("Error fetching traffic:", err));
+        }
+
+        updateMap();
+        setInterval(updateMap, 60000); // Refreshes map screen every 60 seconds
+    </script>
+</body>
+</html>

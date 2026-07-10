@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booth Controller</title>
+    <style>
+        body { 
+            font-family: sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            margin: 0; 
+            background-color: #f0f2f5; 
+        }
+        h1 { 
+            margin-bottom: 20px; 
+            text-align: center; 
+        }
+        .btn { 
+            width: 80%; 
+            max-width: 300px; 
+            height: 150px; 
+            margin: 15px; 
+            border: none; 
+            border-radius: 20px; 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: white; 
+            cursor: pointer; 
+            transition: transform 0.1s; 
+        }
+        .btn:active { 
+            transform: scale(0.95); 
+        }
+        .btn-in { 
+            background-color: #ff4d4d; 
+        }
+        .btn-out { 
+            background-color: #3399ff; 
+        }
+    </style>
+</head>
+<body>
+
+    <h1 id="booth-title">Loading Booth...</h1>
+    <button class="btn btn-in" onclick="sendUpdate('check_in')">Check In (+1)</button>
+    <button class="btn btn-out" onclick="sendUpdate('check_out')">Check Out (-1)</button>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const boothId = urlParams.get('booth') || "Booth 1: Haunted House";
+        document.getElementById('booth-title').innerText = boothId;
+
+        function sendUpdate(actionType) {
+            fetch('https://festival-traffic-server.onrender.com/api/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ booth_id: boothId, action: actionType })
+            })
+            .then(res => res.json())
+            .then(data => console.log("Updated:", data))
+            .catch(err => console.error("Error:", err));
+        }
+    </script>
+</body>
+</html>
