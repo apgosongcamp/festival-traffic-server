@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Festival Live Traffic Map</title>
+    <style>
+        body { font-family: sans-serif; background-color: #1a1a1a; color: #fff; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        h1 { margin-bottom: 5px; font-size: 24px; text-align: center; }
+        .timestamp { color: #888; margin-bottom: 15px; font-size: 14px; }
+        
+        /* Floor Toggle Container */
+        .floor-controls { display: flex; gap: 10px; margin-bottom: 15px; }
+        .floor-btn { background-color: #333; color: #fff; border: 2px solid #555; padding: 8px 16px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .floor-btn.active { background-color: #00ffcc; color: #1a1a1a; border-color: #00ffcc; }
+
+        /* RESPONSIVE Map Canvas (Scales down for mobile) */
+        .map-wrapper { 
+            position: relative; 
+            width: 100%; 
+            max-width: 1000px; /* Max size on PC */
+            aspect-ratio: 1000 / 600; /* Keeps the map proportions strict */
+            background-size: cover; 
+            background-position: center; 
+            border-radius: 15px; 
+            border: 2px solid #333; 
+        }
+        
+        /* Badges use % instead of pixels to scale perfectly */
+        .booth-badge { 
+            position: absolute; 
+            background: rgba(20, 20, 25, 0.85); 
+            backdrop-filter: blur(5px); 
+            border: 2px solid #00ffcc; 
+            border-radius: 6px; 
+            padding: 6px; 
+            width: 80px; /* Smaller width for mobile screens */
+            text-align: center; 
+            transform: translate(-50%, -50%); 
+        }
+        .booth-name { font-size: 10px; font-weight: bold; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .booth-count { font-size: 18px; font-weight: bold; color: #00ffcc; }
+        .crowded { border-color: #ff4d4d; }
+        .crowded .booth-count { color: #ff4d4d; }
+    </style>
+</head>
+<body>
+
+    <h1>🎪 School Festival Live Traffic Map</h1>
+    <div class="timestamp" id="last-updated">Updating every minute...</div>
+
+    <div class="floor-controls">
+        <button class="floor-btn active" id="btn-floor1" onclick="switchFloor(1)">1st Floor</button>
+        <button class="floor-btn" id="btn-floor2" onclick="switchFloor(2)">2nd Floor</button>
+    </div>
+
+    <div class="map-wrapper" id="map-container"></div>
+
+    <script>
+        let currentFloor = 1;
+
+        const floorImages = {
+            1: 'school_floorplan_1.png',
+            2: 'school_floorplan_2.png'
+        };
+
+        // CRUCIAL: Percentages are calculated as (Pixel Coordinate / Total Image Width or Height) * 100
+        // Example: If original X was 250 on a 1000px wide image -> (250/1000)*100 = 25%
+        const boothDataByFloor = {
+            1: {
+                "Booth 1: Haunted House": { xPercent: 25.0, yPercent: 30.0 }, // Was x:250, y:180 -> (180/600)*100 = 30%
+                "Booth 2: Food Court":    { xPercent: 50.0, yPercent: 75.0 }  // Was x:500, y:450 -> (450/600)*100 = 75%
+            },
+            2: {
+                "Booth 3: Arcade Games":  { xPercent: 78.0, yPercent: 36.6 }, // Was x:780, y:220 -> (220/600)*100 = 36.6%
+                "Booth 4: Photobooth":    { xPercent: 15.0, yPercent: 66.6 }  // Was x:150, y:400 -> (400/600)*100 = 66.6%
+            }
+        };
+
+        function switchFloor(floorNumber) {
+            currentFloor = floorNumber;
+            document.getElementById('btn-floor1').classList.toggle('active', floorNumber === 1);
+            document.getElementById('btn-floor2').classList.toggle('active', floorNumber === 2);
+            updateMap();
+        }
+
+        function updateMap() {
+            const container = document.getElementById('map-container');
+            container.style.backgroundImage = `url('${floorImages[currentFloor]}')`;
+
+            fetch('https://festival-traffic-server.onrender.com/api/traffic')
+                .then(res => res.json())
+                .then(data => {
+                    container.querySelectorAll('.booth-badge').forEach(b => b.remove());
+                    const activeFloorCoordinates = boothDataByFloor[currentFloor];
+
+                    for (const [boothName, count] of Object.entries(data)) {
+                        const coords = activeFloorCoordinates[boothName];
+                        
+                        if (coords) {
+                            const badge = document.createElement('div');
+                            badge.className = 'booth-badge';
+                            if (count >= 20) badge.classList.add('crowded');
+
+                            // Positions use percentage lengths so they match the fluid image shrinking
+                            badge.style.left = `${coords.xPercent}%`;
+                            badge.style.top = `${coords.yPercent}%`;
+                            badge.innerHTML = `
+                                <div class="booth-name">${boothName.split(': ')[1] || boothName}</div>
+                                <div class="booth-count">${count}</div>
+                            `;
+                            container.appendChild(badge);
+                        }
+                    }
+                    document.getElementById('last-updated').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+                })
+                .catch(err => console.error("Error fetching traffic:", err));
+        }
+
+        updateMap();
+        setInterval(updateMap, 60000);
+    </script>
+</body>
+</html>
